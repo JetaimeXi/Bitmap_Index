@@ -13,14 +13,17 @@ public class bitMap_Index {
             // 获取执行sql的对象Statement
             stmt = conn.createStatement();
             // 定义sql语句
-            String sql = "select host, user from user";
+            String sql = "select * from custom_info";
             // 执行sql语句
             rs = stmt.executeQuery(sql);
             // 处理结果
             while (rs.next()) {
                 System.out.println(
-                        rs.getString("host") + "--" +
-                                rs.getString("user")
+                        rs.getString("id") + "--" +
+                                rs.getString("name")+ "--" +
+                                rs.getString("gender")+ "--" +
+                                rs.getString("Address")+ "--" +
+                                rs.getString("I_Level")
                 );
             }
         } catch (SQLException e) {
