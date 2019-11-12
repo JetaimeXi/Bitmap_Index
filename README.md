@@ -57,3 +57,9 @@
 - 把一个位图索引的字段的值从值v改为值w。必须找到v的位向量并把位置i上的1改为0。
 - 如果存在一个值w的位向量，那么把它的位置i上的0改为1；如果不存在值w的位向量，那么创建一个新的位向量。
 
+### 代码实现思路
+- 根据每一列的取值建立位图索引(初始化阶段，static静态代码块)
+    - ResultSet.getMetaData()函数实现获取列的相关属性
+    - ResultSetMetaData.getColumnCount()及getColumnName()获取列数及列名称。
+    - HashMap<String, List<String>> lists是来获取列名及列的取值
+    - HashMap<String, BitSet> bitMap是来获取列的取值及位向量 
