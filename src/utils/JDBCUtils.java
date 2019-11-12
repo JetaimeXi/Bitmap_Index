@@ -76,7 +76,7 @@ public class JDBCUtils {
      * @Method: close
      * @Parameters:
      * @Description: 关闭连接，释放资源
-     * @Implementation: 对应于stmt.executeUpdate操作
+     * @Implementation: 对应于Statement.executeUpdate操作
      * @Return: void
      */
     public static void close(Statement stmt, Connection conn) {
@@ -106,7 +106,7 @@ public class JDBCUtils {
      * @Method: close
      * @Parameters:
      * @Description: 关闭连接，释放资源
-     * @Implementation: 对应于stmt.executeQuery操作
+     * @Implementation: 对应于Statement.executeQuery操作
      * @Return: void
      */
     public static void close(ResultSet rs, Statement stmt, Connection conn) {
