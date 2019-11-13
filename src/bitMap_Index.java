@@ -12,6 +12,16 @@ public class bitMap_Index {
     private static String table = "custom_info";
     private static int count;
 
+    /**
+     * @Date: 2019/11/13 18:53
+     * @Author: Tod
+     * @Method: static initializer
+     * @Parameters:
+     * @param null
+     * @Description: 静态代码块，当调用此类时执行，作用是获取每一列的取值并建立位图索引(位向量)
+     * @Implementation: 先获取每列的列名，分组运算求每列的取值，遍历总的记录数获取每一列的取值的位向量，通过encode函数进行压缩位图
+     * @Return: 无
+     */
     static {
         try {
             // 调用utils.JDBCUtils工具类，获取数据库连接
@@ -36,8 +46,8 @@ public class bitMap_Index {
                     bitMap.put(columnType, new BitSet());
                 }
             }
-//            System.out.println(lists);
-//            System.out.println(bitMap);
+            System.out.println(lists);
+            System.out.println(bitMap);
             // 获取每个字段的位图值
             rs.first();
             // 遍历每行
@@ -51,7 +61,7 @@ public class bitMap_Index {
                 // 指针移动
                 rs.next();
             }
-//            System.out.println(bitMap);
+            System.out.println(bitMap);
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
