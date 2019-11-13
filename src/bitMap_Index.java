@@ -46,8 +46,8 @@ public class bitMap_Index {
                     bitMap.put(columnType, new BitSet());
                 }
             }
-            System.out.println(lists);
-            System.out.println(bitMap);
+//            System.out.println(lists);
+//            System.out.println(bitMap);
             // 获取每个字段的位图值
             rs.first();
             // 遍历每行
@@ -62,6 +62,15 @@ public class bitMap_Index {
                 rs.next();
             }
             System.out.println(bitMap);
+//            Set<Map.Entry<String, BitSet>> entries = bitMap.entrySet();
+//            for (Map.Entry<String, BitSet> entry : entries) {
+//                // 获取值
+//                BitSet bs = entry.getValue();
+//                // 压缩位向量
+//                BitSet ebs = encoding(bs);
+//                // 设置值
+//                entry.setValue(ebs);
+//            }
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
@@ -71,6 +80,7 @@ public class bitMap_Index {
 
     public static void main(String[] args) {
         System.out.println("hello");
+        System.out.println(select(new BitSet[]{bitMap.get("F"),bitMap.get("L1")}));
     }
 
     /**
@@ -109,13 +119,28 @@ public class bitMap_Index {
         return false;
     }
 
-    private static int select(String selectStr) {
-        return 0;
+    private static List<Integer> select(BitSet[] selectCondition) {
+        BitSet temp = selectCondition[0];
+        for (int i = 1; i < selectCondition.length; i++) {
+            temp.and(selectCondition[i]);
+        }
+        List<Integer> list = new ArrayList<>();
+        for (int i = temp.nextSetBit(0);i>=0;i=temp.nextSetBit(i+1)){
+            list.add(i);
+        }
+        return list;
     }
 
-    private static String encoding(String str) {
-        return "";
-    }
+//    private static BitSet encoding(BitSet bitSet) {
+//        int j = 0;
+//        for (int i = bitSet.nextSetBit(0); i >= 0; i = bitSet.nextSetBit(i + 1)) {
+////            System.out.print(i + " ");
+//            int num = i - j - 1;
+//            j = i;
+//        }
+//        System.out.println();
+//        return bitSet;
+//    }
 
     private static String decoding(String str) {
         return "";
