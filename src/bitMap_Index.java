@@ -7,8 +7,9 @@ public class bitMap_Index {
     private static Connection conn = null;
     private static PreparedStatement pstmt = null;
     private static ResultSet rs = null;
-    private static HashMap<String, BitSet> bitMap = new HashMap<>();
-    private static HashMap<String, List<String>> lists = new HashMap<>();
+    private static ResultSetMetaData metaData = null;
+    private static HashMap<String, BitSet> bitMap = new HashMap<>();    // 存放 key:列的取值 value:位向量
+    private static HashMap<String, List<String>> lists = new HashMap<>(); // 存放 key:列名 value:列的取值
     private static String table = "custom_info";
     private static int count;
 
@@ -34,7 +35,8 @@ public class bitMap_Index {
             // 获取行数
             rs.last();
             count = rs.getRow();
-            ResultSetMetaData metaData = rs.getMetaData();
+            // 最后一点需要注意的是，无论是 ResultSet 还是 ResultSetMetaData，都是需要释放资源的
+            metaData = rs.getMetaData();
             for (int i = 2; i <= metaData.getColumnCount(); i++) {
                 // 获取列名称
                 String columnName = metaData.getColumnName(i);
@@ -80,7 +82,9 @@ public class bitMap_Index {
 
     public static void main(String[] args) {
         System.out.println("hello");
-        System.out.println(getSelectID(new BitSet[]{bitMap.get("F"), bitMap.get("L1")}));
+        select(getSelectID(new BitSet[]{bitMap.get("F"), bitMap.get("L1")}));
+        System.out.println(insert(new String[]{"Tod", "M", "Guangzhou", "L1"}));
+        System.out.println(bitMap);
     }
 
     /**
@@ -107,8 +111,52 @@ public class bitMap_Index {
         return list;
     }
 
-    private static boolean insert(String insertStr) {
-        return false;
+    /**
+     * @param insertStr 插入记录对应的字符串集(不允许有空值，也可以有空值，但是为了数据完整性)
+     * @Description: 插入记录及维护HashMap中的键值对
+     * @Method: insert
+     * @Implementation:
+     * @Return: boolean 字符集未满足列的个数(除去id号)返回false，
+     * @Date: 2019/11/13 23:57
+     * @Author: Tod
+     */
+    private static boolean insert(String[] insertStr) {
+        // 安全性检查(不允许有空值)
+        try {
+            if (insertStr.length < metaData.getColumnCount() - 1) {
+                return false;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        }
+        // 记录数加1
+        count++;
+        // 执行insert操作
+        // insert into 表名 values(值1,值2,...值n);
+        StringBuffer sb = new StringBuffer("INSERT INTO custom_info VALUES(NULL, ");
+        for (int i = 1; i < insertStr.length; i++) {
+            sb.append("?, ");
+        }
+        sb.append("?)");
+        if (executeSqlUpdate(sb.toString(), insertStr)) {
+            // 判断插入的值是否在bitMap中
+            for (String s : insertStr) {
+                BitSet bitSet = bitMap.get(s);
+                if (bitSet != null) {
+                    // 是，则在其位置标1
+                    bitSet.set(count);
+                } else {
+                    // 否，则在lists对应的列名中添加value，
+                    // 在bitMap中插入一个键值对
+                    bitSet = new BitSet();
+                    bitSet.set(count);
+                    bitMap.put(s, bitSet);
+                }
+            }
+            return true;
+        } else {
+            return false;
+        }
     }
 
     private static boolean delete(String deleteStr) {
@@ -129,8 +177,10 @@ public class bitMap_Index {
      * @Author: Tod
      */
     private static List<Integer> getSelectID(BitSet[] selectCondition) {
-
-        BitSet temp = selectCondition[0];
+        BitSet temp = new BitSet();
+        for (int i = selectCondition[0].nextSetBit(0); i >= 0; i = selectCondition[0].nextSetBit(i + 1)) {
+            temp.set(i);
+        }
         for (int i = 1; i < selectCondition.length; i++) {
             temp.and(selectCondition[i]);
         }
@@ -141,6 +191,47 @@ public class bitMap_Index {
         return list;
     }
 
+    /**
+     * @param list 存放记录的id号
+     * @Description: 实现对List存储的id号进行select操作
+     * @Method: select
+     * @Implementation:
+     * @Return: void
+     * @Date: 2019/11/13 22:48
+     * @Author: Tod
+     */
+    private static void select(List<Integer> list) {
+        try {
+            // 获取数据库连接对象conn
+            conn = JDBCUtils.getConnection();
+            // 定义sql语句
+            String sql = "SELECT * FROM custom_info WHERE id = ?";
+            // 获取执行sql语句的PreparedStatement对象pstmt
+            pstmt = conn.prepareStatement(sql);
+            // 设置值
+            for (Integer i : list) {
+                pstmt.setInt(1, i);
+                // 执行sql语句
+                rs = pstmt.executeQuery();
+                // 处理结果
+                metaData = rs.getMetaData();
+                for (int j = 1; j <= metaData.getColumnCount(); j++) {
+                    System.out.print(metaData.getColumnName(j) + '\t' + '\t');
+                }
+                System.out.println();
+                while (rs.next()) {
+                    for (int j = 1; j <= metaData.getColumnCount(); j++) {
+                        System.out.print(rs.getString(j) + '\t' + '\t');
+                    }
+                    System.out.println();
+                }
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
+        } finally {
+            JDBCUtils.close(rs, pstmt, conn);
+        }
+    }
 //    private static BitSet encoding(BitSet bitSet) {
 //        int j = 0;
 //        for (int i = bitSet.nextSetBit(0); i >= 0; i = bitSet.nextSetBit(i + 1)) {
@@ -156,5 +247,34 @@ public class bitMap_Index {
         return "";
     }
 
-
+    /**
+     * @param sql    构造对应带?符号的sql语句
+     * @param params 对应?个数的参数列表
+     * @Description: 执行INSERT、DELETE、UPDATE操作
+     * @Method: executeSqlUpdate
+     * @Implementation:
+     * @Return: boolean 执行成功返回true
+     * @Date: 2019/11/14 0:53
+     * @Author: Tod
+     */
+    private static boolean executeSqlUpdate(String sql, String[] params) {
+        try {
+            // 获取数据库连接对象conn
+            conn = JDBCUtils.getConnection();
+            // 获取执行sql语句的PreparedStatement对象pstmt
+            pstmt = conn.prepareStatement(sql);
+            // 设置值
+            for (int i = 1; i <= params.length; i++) {
+                pstmt.setString(i, params[i - 1]);
+            }
+            // 执行sql语句
+            pstmt.executeUpdate();
+            return true;
+        } catch (SQLException e) {
+            e.printStackTrace();
+            return false;
+        } finally {
+            JDBCUtils.close(rs, pstmt, conn);
+        }
+    }
 }
