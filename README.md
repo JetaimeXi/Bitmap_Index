@@ -63,3 +63,6 @@
     - ResultSetMetaData.getColumnCount()及getColumnName()获取列数及列名称。
     - HashMap<String, List<String>> lists是来获取列名及列的取值
     - HashMap<String, BitSet> bitMap是来获取列的取值及位向量 
+- getSelectID函数(参数：BitSet[] 多码查询条件)
+    - 通过temp接受第一个BitSet,与后面的BitSet进行与运算
+    - 再将temp中对应的值用List集合保存返回，返回的值为对应的记录号。

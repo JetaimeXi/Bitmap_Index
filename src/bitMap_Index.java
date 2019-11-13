@@ -80,7 +80,7 @@ public class bitMap_Index {
 
     public static void main(String[] args) {
         System.out.println("hello");
-        System.out.println(select(new BitSet[]{bitMap.get("F"),bitMap.get("L1")}));
+        System.out.println(getSelectID(new BitSet[]{bitMap.get("F"), bitMap.get("L1")}));
     }
 
     /**
@@ -119,13 +119,23 @@ public class bitMap_Index {
         return false;
     }
 
-    private static List<Integer> select(BitSet[] selectCondition) {
+    /**
+     * @param selectCondition 传入多码查询对应的BitSet集合
+     * @Description: 与运算，结果(记录号)存入List中返回
+     * @Method: getSelectID
+     * @Implementation:
+     * @Return: java.util.List<java.lang.Integer>
+     * @Date:
+     * @Author: Tod
+     */
+    private static List<Integer> getSelectID(BitSet[] selectCondition) {
+
         BitSet temp = selectCondition[0];
         for (int i = 1; i < selectCondition.length; i++) {
             temp.and(selectCondition[i]);
         }
         List<Integer> list = new ArrayList<>();
-        for (int i = temp.nextSetBit(0);i>=0;i=temp.nextSetBit(i+1)){
+        for (int i = temp.nextSetBit(0); i >= 0; i = temp.nextSetBit(i + 1)) {
             list.add(i);
         }
         return list;
