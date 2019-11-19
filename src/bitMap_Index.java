@@ -58,7 +58,8 @@ public class bitMap_Index {
                 for (int i = 2; i <= metaData.getColumnCount(); i++) {
                     // 获取当前列的值，并置位图值
                     BitSet bitSet = bitMap.get(rs.getString(i));
-                    bitSet.set(j);
+//                    bitSet.set(j);
+                    bitSet.set(rs.getInt(1));
                 }
                 // 指针移动
                 rs.next();
@@ -82,12 +83,13 @@ public class bitMap_Index {
 
     public static void main(String[] args) {
         System.out.println("hello");
-        selectResult(getSelectID(new BitSet[]{bitMap.get("F"), bitMap.get("L1")}));
+//        selectResult(getSelectID(new BitSet[]{bitMap.get("F"), bitMap.get("L1")}));
 //        System.out.println(insert(new String[]{"Tod", "M", "Guangzhou", "L1"}));
 //        System.out.println(bitMap);
-//        System.out.println(update(new String[]{"name", "Cai", "gender", "F", "address", "Jieyang", "8"}));
+//        System.out.println(update(new String[]{"name", "Cai", "gender", "F", "address", "Jieyang", "9"}));
+        System.out.println(update(new String[]{"name", "Tod", "gender", "M", "address", "Guangzhou", "10"}));
 ////        System.out.println(delete(8));
-//        System.out.println(bitMap);
+        System.out.println(bitMap);
     }
 
     /**
@@ -180,31 +182,51 @@ public class bitMap_Index {
         // update 表名 set 列名1 = 值1, 列名2 = 值2,... [where 条件];
         // UPDATE custom_info SET NAME = "Jimmy" WHERE id = 7
         StringBuilder sb = new StringBuilder("UPDATE " + table + " SET ");
+        String[] strings = new String[(updateStr.length >> 1) + 1];
         for (int i = 0; i < updateStr.length - 1; i = i + 2) {
-            sb.append("?=?,");
+            sb.append(updateStr[i] + "=?,");
+            strings[i >> 1] = updateStr[i + 1];
         }
         sb.deleteCharAt(sb.length() - 1);
-        sb.append("WHERE id=?");
-        if (executeSqlUpdate(sb.toString(), updateStr)) {
-            int id = updateStr[updateStr.length - 1].charAt(0) - '0';
-            // 修改之前的bitMap
-            // 判断插入的值是否在bitMap中
-            for (int i = 1; i < updateStr.length; i += 2) {
-                BitSet bitSet = bitMap.get(updateStr[i]);
-                if (bitSet != null) {
-                    // 是，则在其位置标1
-                    bitSet.set(id);
-                } else {
-                    // 否，则在lists对应的列名中添加value，
-                    // 在bitMap中插入一个键值对
-                    bitSet = new BitSet();
-                    bitSet.set(id);
-                    bitMap.put(updateStr[i], bitSet);
-                }
+        sb.append(" WHERE id=?");
+        strings[strings.length - 1] = updateStr[updateStr.length - 1];
+        int id = Integer.valueOf(updateStr[updateStr.length - 1]);
+        // 修改之前的bitMap
+        try {
+            conn = JDBCUtils.getConnection();
+            ResultSet rs = select(id);
+            rs.next();
+            for (int j = 2; j <= metaData.getColumnCount(); j++) {
+                bitMap.get(rs.getString(j)).clear(id);
             }
-            return true;
-        } else {
+            System.out.println(bitMap);
+            if (executeSqlUpdate(sb.toString(), strings)) {
+                // 判断插入的值是否在bitMap中
+                conn = JDBCUtils.getConnection();
+                rs = select(id);
+                rs.next();
+                for (int j = 2; j <= metaData.getColumnCount(); j++) {
+                    BitSet bitSet = bitMap.get(rs.getString(j));
+                    if (bitSet != null) {
+                        // 是，则在其位置标1
+                        bitSet.set(id);
+                    } else {
+                        // 否，则在lists对应的列名中添加value，
+                        // 在bitMap中插入一个键值对
+                        bitSet = new BitSet();
+                        bitSet.set(id);
+                        bitMap.put(rs.getString(j), bitSet);
+                    }
+                }
+                return true;
+            } else {
+                return false;
+            }
+        } catch (SQLException e) {
+            e.printStackTrace();
             return false;
+        } finally {
+            JDBCUtils.close(rs, pstmt, conn);
         }
     }
 
@@ -239,7 +261,7 @@ public class bitMap_Index {
             boolean flag = true;
             for (Integer integer : list) {
                 ResultSet rs = select(integer.intValue());
-                if (flag){
+                if (flag) {
                     // 打印表头
                     metaData = rs.getMetaData();
                     for (int j = 1; j <= metaData.getColumnCount(); j++) {
