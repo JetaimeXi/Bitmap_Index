@@ -85,6 +85,8 @@ public class bitMap_Index {
         select(getSelectID(new BitSet[]{bitMap.get("F"), bitMap.get("L1")}));
         System.out.println(insert(new String[]{"Tod", "M", "Guangzhou", "L1"}));
         System.out.println(bitMap);
+        System.out.println(delete(8));
+        System.out.println(bitMap);
     }
 
     /**
@@ -133,7 +135,7 @@ public class bitMap_Index {
         count++;
         // 执行insert操作
         // insert into 表名 values(值1,值2,...值n);
-        StringBuffer sb = new StringBuffer("INSERT INTO custom_info VALUES(NULL, ");
+        StringBuffer sb = new StringBuffer("INSERT INTO " + table + " VALUES(NULL, ");
         for (int i = 1; i < insertStr.length; i++) {
             sb.append("?, ");
         }
@@ -159,12 +161,48 @@ public class bitMap_Index {
         }
     }
 
-    private static boolean delete(String deleteStr) {
-        return false;
+
+    private static boolean delete(int id) {
+//        DELETE FROM custom_info WHERE id=8;
+        StringBuilder sb = new StringBuilder("DELETE FROM " + table + " WHERE id=?");
+        if (executeSqlUpdate(sb.toString(), new String[]{String.valueOf(id)})) {
+            for (BitSet value : bitMap.values()) {
+                value.clear(id);
+            }
+            return true;
+        } else {
+            return false;
+        }
     }
 
-    private static boolean update(String updateStr) {
-        return false;
+    private static boolean update(String[] updateStr) {
+        // update 表名 set 列名1 = 值1, 列名2 = 值2,... [where 条件];
+        // UPDATE custom_info SET NAME = "Jimmy" WHERE id = 7
+        StringBuilder sb = new StringBuilder("UPDATE " + table + " SET ");
+        for (int i = 0; i < updateStr.length - 1; i = i + 2) {
+            sb.append("?=?,");
+        }
+        sb.deleteCharAt(sb.length() - 1);
+        sb.append("WHERE id=?");
+        if (executeSqlUpdate(sb.toString(), updateStr)) {
+            // 判断插入的值是否在bitMap中
+            for (String s : updateStr) {
+                BitSet bitSet = bitMap.get(s);
+                if (bitSet != null) {
+                    // 是，则在其位置标1
+                    bitSet.set(count);
+                } else {
+                    // 否，则在lists对应的列名中添加value，
+                    // 在bitMap中插入一个键值对
+                    bitSet = new BitSet();
+                    bitSet.set(count);
+                    bitMap.put(s, bitSet);
+                }
+            }
+            return true;
+        } else {
+            return false;
+        }
     }
 
     /**
@@ -264,8 +302,13 @@ public class bitMap_Index {
             // 获取执行sql语句的PreparedStatement对象pstmt
             pstmt = conn.prepareStatement(sql);
             // 设置值
-            for (int i = 1; i <= params.length; i++) {
-                pstmt.setString(i, params[i - 1]);
+            for (int i = 0; i < params.length; i++) {
+                if (i == params.length - 1 && (params[i].charAt(0) - '0' >= 0) && (params[i].charAt(0) - '0' <= 9)) {
+                    Integer integer = Integer.valueOf(params[i]);
+                    pstmt.setInt(i + 1, integer.intValue());
+                    continue;
+                }
+                pstmt.setString(i + 1, params[i]);
             }
             // 执行sql语句
             pstmt.executeUpdate();
