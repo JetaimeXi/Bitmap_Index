@@ -82,11 +82,12 @@ public class bitMap_Index {
 
     public static void main(String[] args) {
         System.out.println("hello");
-        select(getSelectID(new BitSet[]{bitMap.get("F"), bitMap.get("L1")}));
-        System.out.println(insert(new String[]{"Tod", "M", "Guangzhou", "L1"}));
-        System.out.println(bitMap);
-        System.out.println(delete(8));
-        System.out.println(bitMap);
+        selectResult(getSelectID(new BitSet[]{bitMap.get("F"), bitMap.get("L1")}));
+//        System.out.println(insert(new String[]{"Tod", "M", "Guangzhou", "L1"}));
+//        System.out.println(bitMap);
+//        System.out.println(update(new String[]{"name", "Cai", "gender", "F", "address", "Jieyang", "8"}));
+////        System.out.println(delete(8));
+//        System.out.println(bitMap);
     }
 
     /**
@@ -185,18 +186,20 @@ public class bitMap_Index {
         sb.deleteCharAt(sb.length() - 1);
         sb.append("WHERE id=?");
         if (executeSqlUpdate(sb.toString(), updateStr)) {
+            int id = updateStr[updateStr.length - 1].charAt(0) - '0';
+            // 修改之前的bitMap
             // 判断插入的值是否在bitMap中
-            for (String s : updateStr) {
-                BitSet bitSet = bitMap.get(s);
+            for (int i = 1; i < updateStr.length; i += 2) {
+                BitSet bitSet = bitMap.get(updateStr[i]);
                 if (bitSet != null) {
                     // 是，则在其位置标1
-                    bitSet.set(count);
+                    bitSet.set(id);
                 } else {
                     // 否，则在lists对应的列名中添加value，
                     // 在bitMap中插入一个键值对
                     bitSet = new BitSet();
-                    bitSet.set(count);
-                    bitMap.put(s, bitSet);
+                    bitSet.set(id);
+                    bitMap.put(updateStr[i], bitSet);
                 }
             }
             return true;
@@ -229,40 +232,23 @@ public class bitMap_Index {
         return list;
     }
 
-    /**
-     * @param list 存放记录的id号
-     * @Description: 实现对List存储的id号进行select操作
-     * @Method: select
-     * @Implementation:
-     * @Return: void
-     * @Date: 2019/11/13 22:48
-     * @Author: Tod
-     */
-    private static void select(List<Integer> list) {
+    private static void selectResult(List<Integer> list) {
+        // 获取数据库连接对象conn
         try {
-            // 获取数据库连接对象conn
             conn = JDBCUtils.getConnection();
-            // 定义sql语句
-            String sql = "SELECT * FROM custom_info WHERE id = ?";
-            // 获取执行sql语句的PreparedStatement对象pstmt
-            pstmt = conn.prepareStatement(sql);
-            // 设置值
-            for (Integer i : list) {
-                pstmt.setInt(1, i);
-                // 执行sql语句
-                rs = pstmt.executeQuery();
-                // 处理结果
-                metaData = rs.getMetaData();
-                for (int j = 1; j <= metaData.getColumnCount(); j++) {
-                    System.out.print(metaData.getColumnName(j) + '\t' + '\t');
-                }
-                System.out.println();
-                while (rs.next()) {
+            boolean flag = true;
+            for (Integer integer : list) {
+                ResultSet rs = select(integer.intValue());
+                if (flag){
+                    // 打印表头
+                    metaData = rs.getMetaData();
                     for (int j = 1; j <= metaData.getColumnCount(); j++) {
-                        System.out.print(rs.getString(j) + '\t' + '\t');
+                        System.out.print(metaData.getColumnName(j) + '\t' + '\t');
                     }
                     System.out.println();
+                    flag = false;
                 }
+                print(rs);
             }
         } catch (SQLException e) {
             e.printStackTrace();
@@ -270,6 +256,37 @@ public class bitMap_Index {
             JDBCUtils.close(rs, pstmt, conn);
         }
     }
+
+    /**
+     * @param id 存放记录的id号
+     * @Description: 实现对id号进行select操作
+     * @Method: select
+     * @Implementation:
+     * @Return: void
+     * @Date: 2019/11/13 22:48
+     * @Author: Tod
+     */
+    private static ResultSet select(int id) throws SQLException {
+        // 定义sql语句
+        String sql = "SELECT * FROM custom_info WHERE id = ?";
+        // 获取执行sql语句的PreparedStatement对象pstmt
+        pstmt = conn.prepareStatement(sql);
+        // 设置值
+        pstmt.setInt(1, id);
+        // 执行sql语句
+        rs = pstmt.executeQuery();
+        return rs;
+    }
+
+    private static void print(ResultSet rs) throws SQLException {
+        while (rs.next()) {
+            for (int j = 1; j <= metaData.getColumnCount(); j++) {
+                System.out.print(rs.getString(j) + '\t' + '\t');
+            }
+            System.out.println();
+        }
+    }
+
 //    private static BitSet encoding(BitSet bitSet) {
 //        int j = 0;
 //        for (int i = bitSet.nextSetBit(0); i >= 0; i = bitSet.nextSetBit(i + 1)) {
