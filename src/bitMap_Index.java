@@ -9,9 +9,10 @@ public class bitMap_Index {
     private static ResultSet rs = null;
     private static ResultSetMetaData metaData = null;
     private static HashMap<String, BitSet> bitMap = new HashMap<>();    // 存放 key:列的取值 value:位向量
-    private static HashMap<String, List<String>> lists = new HashMap<>(); // 存放 key:列名 value:列的取值
+    //        private static HashMap<String, List<String>> lists = new HashMap<>(); // 存放 key:列名 value:列的取值     同样没有作用
+    private static HashMap<String, Integer> length = new HashMap<>();   // 存放 key:列的取值 value:压缩位图后的长度 用途：解压缩
     private static String table = "custom_info";
-    private static int count;
+//    private static int count;   //并没有作用
 
     /**
      * @Date: 2019/11/13 18:53
@@ -31,50 +32,53 @@ public class bitMap_Index {
             String sql = "SELECT * FROM " + table;
             // 获取执行sql的PreparedStatement对象
             PreparedStatement pstmt = conn.prepareStatement(sql);
-            ResultSet rs = pstmt.executeQuery();
+            rs = pstmt.executeQuery();
+            metaData = rs.getMetaData();
+            // 获取列数
+            int columnCount = metaData.getColumnCount();
             // 获取行数
             rs.last();
-            count = rs.getRow();
+            int rowCount = rs.getRow();
             // 最后一点需要注意的是，无论是 ResultSet 还是 ResultSetMetaData，都是需要释放资源的
-            metaData = rs.getMetaData();
-            for (int i = 2; i <= metaData.getColumnCount(); i++) {
+            for (int i = 2; i <= columnCount; i++) {
                 // 获取列名称
                 String columnName = metaData.getColumnName(i);
                 // 获取每列的取值范围
-                List<String> columnTypes = getColumnTypes(columnName);
-                lists.put(columnName, columnTypes);
+                List<String> columnTypes = getColumnTypes(columnName);   //注意
+//                lists.put(columnName, columnTypes);
                 // 初始化位图
                 for (String columnType : columnTypes) {
                     bitMap.put(columnType, new BitSet());
                 }
             }
-//            System.out.println(lists);
 //            System.out.println(bitMap);
-            // 获取每个字段的位图值
-            rs.first();
+//            // 获取每个字段的位图值
             // 遍历每行
-            for (int j = 1; j <= count; j++) {
+            rs = pstmt.executeQuery(); // 再执行一次
+            rs.next();
+            for (int j = 1; j <= rowCount; j++) {
                 // 遍历每列
-                for (int i = 2; i <= metaData.getColumnCount(); i++) {
+                for (int i = 2; i <= columnCount; i++) {
                     // 获取当前列的值，并置位图值
                     BitSet bitSet = bitMap.get(rs.getString(i));
-//                    bitSet.set(j);
+                    // 设置id为其位图索引标志
                     bitSet.set(rs.getInt(1));
                 }
                 // 指针移动
                 rs.next();
             }
-            System.out.println(bitMap);
-//            Set<Map.Entry<String, BitSet>> entries = bitMap.entrySet();
-//            for (Map.Entry<String, BitSet> entry : entries) {
-//                // 获取值
-//                BitSet bs = entry.getValue();
-//                // 压缩位向量
-//                BitSet ebs = encoding(bs);
-//                // 设置值
-//                entry.setValue(ebs);
+            System.out.println("static压缩前:" + bitMap);
+            // 压缩位图并设置压缩位图的长度
+            for (Map.Entry<String, BitSet> stringBitSetEntry : bitMap.entrySet()) {
+                length.put(stringBitSetEntry.getKey(), encoding(stringBitSetEntry.getValue()));
+            }
+            System.out.println("static压缩后:" + bitMap);
+//            System.out.println(length);
+//            // 解压缩
+//            for (Map.Entry<String, BitSet> stringBitSetEntry : bitMap.entrySet()) {
+//                decoding(stringBitSetEntry.getValue(),length.get(stringBitSetEntry.getKey()));
 //            }
-            // 压缩位图
+//            System.out.println(bitMap);
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
@@ -84,12 +88,13 @@ public class bitMap_Index {
 
     public static void main(String[] args) {
         System.out.println("hello");
-//        selectResult(getSelectID(new BitSet[]{bitMap.get("F"), bitMap.get("L1")}));
-//        System.out.println(insert(new String[]{"Tod", "M", "Guangzhou", "L1"}));
+//        selectMultiCode(new String[]{"F","L1","Jieyang"});
+//        System.out.println(insert(new String[]{"Jon", "M", "Guangzhou", "L1"}));
 //        System.out.println(bitMap);
 //        System.out.println(update(new String[]{"name", "Cai", "gender", "F", "address", "Jieyang", "9"}));
-//        System.out.println(update(new String[]{"name", "Tod", "gender", "M", "address", "Guangzhou", "10"}));
-////        System.out.println(delete(8));
+//        System.out.println(update(new String[]{"name", "Tod", "address", "Guangzhou", "10"}));
+//        System.out.println(update(new String[]{"name", "Pray", "address", "Shenzheng", "10"}));
+        System.out.println(delete(36));
 //        System.out.println(bitMap);
 //        System.out.println(bitMap.get("Tod"));
 //        byte[] bytes = bitMap.get("Tod").toByteArray();
@@ -119,9 +124,9 @@ public class bitMap_Index {
 //        }
 //        encoding(bitMap.get("M"));
 //        encoding(bitMap.get("F"));
-        int length = encoding(bitMap.get("L1"));
-        decoding(bitMap.get("L1"),length);
-        System.out.println(bitMap.get("L1"));
+//        int length = encoding(bitMap.get("L1"));
+//        decoding(bitMap.get("L1"),length);
+//        System.out.println(bitMap.get("L1"));
     }
 
     /**
@@ -167,7 +172,7 @@ public class bitMap_Index {
             e.printStackTrace();
         }
         // 记录数加1
-        count++;
+//        count++;
         // 执行insert操作
         // insert into 表名 values(值1,值2,...值n);
         StringBuffer sb = new StringBuffer("INSERT INTO " + table + " VALUES(NULL, ");
@@ -176,21 +181,51 @@ public class bitMap_Index {
         }
         sb.append("?)");
         if (executeSqlUpdate(sb.toString(), insertStr)) {
-            // 判断插入的值是否在bitMap中
-            for (String s : insertStr) {
-                BitSet bitSet = bitMap.get(s);
-                if (bitSet != null) {
-                    // 是，则在其位置标1
-                    bitSet.set(count);
-                } else {
-                    // 否，则在lists对应的列名中添加value，
-                    // 在bitMap中插入一个键值对
-                    bitSet = new BitSet();
-                    bitSet.set(count);
-                    bitMap.put(s, bitSet);
+            try {
+                // 获取连接对象
+                conn = JDBCUtils.getConnection();
+                // 定义sql语句
+                String sql = "SELECT MAX(id) FROM " + table;
+                // 获取执行对象
+                pstmt = conn.prepareStatement(sql);
+                // 得到结果
+                rs = pstmt.executeQuery();
+                // 查询插入值的id号
+                rs.next();
+                int ID = rs.getInt(1);
+                System.out.println(ID);
+
+                // 判断插入的值是否在bitMap中
+                for (String s : insertStr) {
+                    BitSet bitSet = bitMap.get(s);
+                    if (bitSet != null) {
+                        // 是，则在其位置标1
+                        // 解压缩
+                        decoding(bitSet, length.get(s));
+                        System.out.println(bitSet);
+                        bitSet.set(ID);
+                        length.put(s, encoding(bitSet));
+//                        System.out.println(bitSet);
+//                        System.out.println(length.get(s));
+                    } else {
+                        // 否，则在lists对应的列名中添加value，
+                        bitSet = new BitSet();
+                        bitSet.set(ID);
+                        // 压缩并插入压缩后长度
+                        length.put(s, encoding(bitSet));
+//                        System.out.println(bitSet);
+//                        System.out.println(length.get(s));
+                        // 在bitMap中插入一个键值对
+                        bitMap.put(s, bitSet);
+                    }
                 }
+                return true;
+            } catch (SQLException e) {
+                e.printStackTrace();
+                return false;
+            } finally {
+                JDBCUtils.close(rs, pstmt, conn);
             }
-            return true;
         } else {
             return false;
         }
@@ -201,8 +236,14 @@ public class bitMap_Index {
 //        DELETE FROM custom_info WHERE id=8;
         StringBuilder sb = new StringBuilder("DELETE FROM " + table + " WHERE id=?");
         if (executeSqlUpdate(sb.toString(), new String[]{String.valueOf(id)})) {
-            for (BitSet value : bitMap.values()) {
-                value.clear(id);
+            for (Map.Entry<String, BitSet> stringBitSetEntry : bitMap.entrySet()) {
+                String s = stringBitSetEntry.getKey();
+                BitSet bitSet = stringBitSetEntry.getValue();
+                // 解压缩
+                decoding(bitSet,length.get(s));
+                // 删除对应位
+                bitSet.clear(id);
+                length.put(s,encoding(bitSet));
             }
             return true;
         } else {
@@ -214,14 +255,17 @@ public class bitMap_Index {
         // update 表名 set 列名1 = 值1, 列名2 = 值2,... [where 条件];
         // UPDATE custom_info SET NAME = "Jimmy" WHERE id = 7
         StringBuilder sb = new StringBuilder("UPDATE " + table + " SET ");
-        String[] strings = new String[(updateStr.length >> 1) + 1];
+        String[] stringValue = new String[(updateStr.length >> 1) + 1];
+//        String[] stringKey = new String[(updateStr.length>>1)];
         for (int i = 0; i < updateStr.length - 1; i = i + 2) {
             sb.append(updateStr[i] + "=?,");
-            strings[i >> 1] = updateStr[i + 1];
+            stringValue[i >> 1] = updateStr[i + 1];
+//            stringKey[i>>1] = updateStr[i];
         }
         sb.deleteCharAt(sb.length() - 1);
         sb.append(" WHERE id=?");
-        strings[strings.length - 1] = updateStr[updateStr.length - 1];
+        stringValue[stringValue.length - 1] = updateStr[updateStr.length - 1];
+        // 获取id
         int id = Integer.valueOf(updateStr[updateStr.length - 1]);
         // 修改之前的bitMap
         try {
@@ -229,27 +273,46 @@ public class bitMap_Index {
             ResultSet rs = select(id);
             rs.next();
             for (int j = 2; j <= metaData.getColumnCount(); j++) {
-                bitMap.get(rs.getString(j)).clear(id);
+                // 获取id的每一列的值
+                String s = rs.getString(j);
+                // 获取解压缩后的位图
+                decoding(bitMap.get(s), length.get(s));
+                // 清除id对应位的位图
+                bitMap.get(s).clear(id);
+                // 压缩位图并将压缩后的长度更新到length中
+                length.put(s, encoding(bitMap.get(s)));
             }
-            System.out.println(bitMap);
-            if (executeSqlUpdate(sb.toString(), strings)) {
+            System.out.println("update压缩后：" + bitMap);
+            if (executeSqlUpdate(sb.toString(), stringValue)) {
                 // 判断插入的值是否在bitMap中
                 conn = JDBCUtils.getConnection();
+                // 查找修改后的值
                 rs = select(id);
                 rs.next();
                 for (int j = 2; j <= metaData.getColumnCount(); j++) {
-                    BitSet bitSet = bitMap.get(rs.getString(j));
+                    // 获取对应列的值
+                    String s = rs.getString(j);
+                    // 判断是否在bitMap中
+                    BitSet bitSet = bitMap.get(s);
                     if (bitSet != null) {
+                        // 解压缩
+                        decoding(bitSet, length.get(s));
                         // 是，则在其位置标1
                         bitSet.set(id);
+                        // 压缩后更新压缩后长度
+                        length.put(s, encoding(bitSet));
                     } else {
                         // 否，则在lists对应的列名中添加value，
                         // 在bitMap中插入一个键值对
                         bitSet = new BitSet();
                         bitSet.set(id);
-                        bitMap.put(rs.getString(j), bitSet);
+                        // 压缩后插入压缩后长度
+                        length.put(s, encoding(bitSet));
+                        // 在bitMap中插入新值
+                        bitMap.put(s, bitSet);
                     }
                 }
+                JDBCUtils.close(rs, pstmt, conn);   //关闭连接
                 return true;
             } else {
                 return false;
@@ -285,6 +348,20 @@ public class bitMap_Index {
         }
         return list;
     }
+
+    private static void selectMultiCode(String[] selectCondition) {
+        int l = selectCondition.length;
+        BitSet[] bitSets = new BitSet[l];
+        for (int i = 0; i < l; i++) {
+            String s = selectCondition[i];
+            decoding(bitMap.get(s), length.get(s));
+            bitSets[i] = new BitSet();
+            bitSets[i].or(bitMap.get(s));
+            encoding(bitMap.get(s));
+        }
+        selectResult(getSelectID(bitSets));
+    }
+
 
     private static void selectResult(List<Integer> list) {
         // 获取数据库连接对象conn
@@ -345,15 +422,15 @@ public class bitMap_Index {
      * @param bitSet
      * @Description:
      * @Method: encoding
-     * @Implementation: BitSet.toByteArray()八位逆序输出
+     * @Implementation:
      * @Return: java.util.BitSet
      * @Date: 2019/11/20 9:53
      * @Author: Tod
      */
     private static int encoding(BitSet bitSet) {
-        System.out.println(bitSet);
+//        System.out.println(bitSet);
         List<Integer> list = getList(bitSet);
-        System.out.println(list);
+//        System.out.println(list);
         int index = 0;
 //        BitSet set = new BitSet();
         bitSet.clear();
@@ -374,8 +451,8 @@ public class bitMap_Index {
                 }
             }
         }
-        System.out.println(bitSet);
-        System.out.println(index);
+//        System.out.println(bitSet);
+//        System.out.println(index);
 //        decoding(set,index);
         return index;
     }
@@ -399,9 +476,8 @@ public class bitMap_Index {
         return list;
     }
 
-    private static void decoding(BitSet bitSet,int length) {
+    private static void decoding(BitSet bitSet, int length) {
         BitSet set = new BitSet();
-//        bitSet.clear();
         int index = 0, count, num;
         int setIndex = 0;
         while (index < length) {
@@ -421,10 +497,10 @@ public class bitMap_Index {
             setIndex += num;
             set.set(setIndex++);
         }
-        System.out.println(set);
+//        System.out.println(set);
         bitSet.clear();
         bitSet.or(set);
-        System.out.println(bitSet);
+//        System.out.println(bitSet);
     }
 
     /**
@@ -462,4 +538,5 @@ public class bitMap_Index {
             JDBCUtils.close(rs, pstmt, conn);
         }
     }
+
 }

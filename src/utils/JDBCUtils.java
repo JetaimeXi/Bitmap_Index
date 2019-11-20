@@ -17,6 +17,11 @@ public class JDBCUtils {
     private static String user;
     private static String password;
     private static String driver;
+    private static String table;
+
+    public static String getTable() {
+        return table;
+    }
 
     /**
      * @Date: 2019/11/12 19:57
@@ -44,6 +49,8 @@ public class JDBCUtils {
             user = pro.getProperty("user");
             password = pro.getProperty("password");
             driver = pro.getProperty("driver");
+            table = pro.getProperty("table");
+
             // 注册驱动
             Class.forName(driver);
         } catch (IOException e) {
