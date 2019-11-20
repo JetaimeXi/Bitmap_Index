@@ -119,7 +119,9 @@ public class bitMap_Index {
 //        }
 //        encoding(bitMap.get("M"));
 //        encoding(bitMap.get("F"));
-        encoding(bitMap.get("L1"));
+        int length = encoding(bitMap.get("L1"));
+        decoding(bitMap.get("L1"),length);
+        System.out.println(bitMap.get("L1"));
     }
 
     /**
@@ -398,8 +400,8 @@ public class bitMap_Index {
     }
 
     private static void decoding(BitSet bitSet,int length) {
-//        BitSet set = new BitSet();
-        bitSet.clear();
+        BitSet set = new BitSet();
+//        bitSet.clear();
         int index = 0, count, num;
         int setIndex = 0;
         while (index < length) {
@@ -417,8 +419,11 @@ public class bitMap_Index {
                 index++;
             }
             setIndex += num;
-            bitSet.set(setIndex++);
+            set.set(setIndex++);
         }
+        System.out.println(set);
+        bitSet.clear();
+        bitSet.or(set);
         System.out.println(bitSet);
     }
 
