@@ -74,6 +74,7 @@ public class bitMap_Index {
 //                // 设置值
 //                entry.setValue(ebs);
 //            }
+            // 压缩位图
         } catch (SQLException e) {
             e.printStackTrace();
         } finally {
@@ -87,9 +88,38 @@ public class bitMap_Index {
 //        System.out.println(insert(new String[]{"Tod", "M", "Guangzhou", "L1"}));
 //        System.out.println(bitMap);
 //        System.out.println(update(new String[]{"name", "Cai", "gender", "F", "address", "Jieyang", "9"}));
-        System.out.println(update(new String[]{"name", "Tod", "gender", "M", "address", "Guangzhou", "10"}));
+//        System.out.println(update(new String[]{"name", "Tod", "gender", "M", "address", "Guangzhou", "10"}));
 ////        System.out.println(delete(8));
-        System.out.println(bitMap);
+//        System.out.println(bitMap);
+//        System.out.println(bitMap.get("Tod"));
+//        byte[] bytes = bitMap.get("Tod").toByteArray();
+//        for (byte b : bytes) {
+//            System.out.println(b);
+//        }
+//        byte[] by = {0, 0, 0, 0, 0, 0, 1, 0, 0, 0, 1};
+//        System.out.println(by.toString());
+//        System.out.println(BitSet.valueOf(by));
+//        for (int i = bytes.length - 1; i >= 0; i--) {
+////            System.out.println(bytes[i]);
+//            while (bytes[i]!=0){
+//
+//            }
+//        }
+//        byte[] bytes = "0101010101".getBytes();
+//        byte[] by = new byte[]{4,64};
+//        BitSet bitSet = BitSet.valueOf(by);
+//        System.out.println(bitSet);
+//        byte[] byteArray = bitSet.toByteArray();
+//        for (byte b : byteArray) {
+//            System.out.println(b);
+//        }
+//        for (byte b : bytes) {
+//            System.out.println(b-'0');
+//
+//        }
+//        encoding(bitMap.get("M"));
+//        encoding(bitMap.get("F"));
+        encoding(bitMap.get("L1"));
     }
 
     /**
@@ -309,19 +339,87 @@ public class bitMap_Index {
         }
     }
 
-//    private static BitSet encoding(BitSet bitSet) {
-//        int j = 0;
-//        for (int i = bitSet.nextSetBit(0); i >= 0; i = bitSet.nextSetBit(i + 1)) {
-////            System.out.print(i + " ");
-//            int num = i - j - 1;
-//            j = i;
-//        }
-//        System.out.println();
-//        return bitSet;
-//    }
+    /**
+     * @param bitSet
+     * @Description:
+     * @Method: encoding
+     * @Implementation: BitSet.toByteArray()八位逆序输出
+     * @Return: java.util.BitSet
+     * @Date: 2019/11/20 9:53
+     * @Author: Tod
+     */
+    private static int encoding(BitSet bitSet) {
+        System.out.println(bitSet);
+        List<Integer> list = getList(bitSet);
+        System.out.println(list);
+        int index = 0;
+//        BitSet set = new BitSet();
+        bitSet.clear();
+        for (Integer integer : list) {
+            int count = getBit(integer);
+            int temp = count;
+            // 0->0 1->1    2->2    3->2    4->3    5->3    ... 8->4
+            while (count > 1) {
+                bitSet.set(index++);
+                count--;
+            }
+            index++;
+            for (int i = temp - 1; i >= 0; i--) {
+                if (((integer >> i) & 1) == 1) {
+                    bitSet.set(index++);
+                } else {
+                    index++;
+                }
+            }
+        }
+        System.out.println(bitSet);
+        System.out.println(index);
+//        decoding(set,index);
+        return index;
+    }
 
-    private static String decoding(String str) {
-        return "";
+    private static int getBit(Integer integer) {
+        if (integer == 0) {
+            return 1;
+        }
+        return (int) Math.ceil(Math.log(integer + 1) / Math.log(2.0));
+    }
+
+    private static List<Integer> getList(BitSet bitSet) {
+        List<Integer> list = new LinkedList<Integer>();
+        int j = -1;
+        int gap;
+        for (int i = bitSet.nextSetBit(0); i >= 0; i = bitSet.nextSetBit(i + 1)) {
+            gap = i - j - 1;
+            j = i;
+            list.add(gap);
+        }
+        return list;
+    }
+
+    private static void decoding(BitSet bitSet,int length) {
+//        BitSet set = new BitSet();
+        bitSet.clear();
+        int index = 0, count, num;
+        int setIndex = 0;
+        while (index < length) {
+            count = 1;
+            while (bitSet.get(index)) {
+                count++;
+                index++;
+            }
+            index++;
+            num = 0;
+            while (count > 0) {
+                num <<= 1;
+                num += bitSet.get(index) ? 1 : 0;
+                count--;
+                index++;
+            }
+            setIndex += num;
+            bitSet.set(setIndex++);
+        }
+        System.out.println(bitSet);
     }
 
     /**
