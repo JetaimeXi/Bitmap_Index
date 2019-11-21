@@ -9,7 +9,7 @@ public class bitMap_Index {
     private static ResultSet rs = null;
     private static ResultSetMetaData metaData = null;
     private static HashMap<String, BitSet> bitMap = new HashMap<>();    // 存放 key:列的取值 value:位向量
-    //        private static HashMap<String, List<String>> lists = new HashMap<>(); // 存放 key:列名 value:列的取值     同样没有作用
+//    private static HashMap<String, List<String>> lists = new HashMap<>(); // 存放 key:列名 value:列的取值     同样没有作用
     private static HashMap<String, Integer> length = new HashMap<>();   // 存放 key:列的取值 value:压缩位图后的长度 用途：解压缩
     private static String table = "custom_info";
 //    private static int count;   //并没有作用
@@ -232,6 +232,15 @@ public class bitMap_Index {
     }
 
 
+    /**
+     * @param id 记录的id号
+     * @Description: 根据id删除记录，并把位图索引删除
+     * @Method: delete
+     * @Implementation: 遍历每个bitMap，解压之后查看是否id位有值，如果有则删除，然后压缩
+     * @Return: boolean 删除成功返回true,否则返回false
+     * @Date: 2019/11/21 9:41
+     * @Author: Tod
+     */
     private static boolean delete(int id) {
 //        DELETE FROM custom_info WHERE id=8;
         StringBuilder sb = new StringBuilder("DELETE FROM " + table + " WHERE id=?");
@@ -240,10 +249,10 @@ public class bitMap_Index {
                 String s = stringBitSetEntry.getKey();
                 BitSet bitSet = stringBitSetEntry.getValue();
                 // 解压缩
-                decoding(bitSet,length.get(s));
+                decoding(bitSet, length.get(s));
                 // 删除对应位
                 bitSet.clear(id);
-                length.put(s,encoding(bitSet));
+                length.put(s, encoding(bitSet));
             }
             return true;
         } else {
@@ -251,6 +260,15 @@ public class bitMap_Index {
         }
     }
 
+    /**
+     * @param updateStr 更新的字段及值及id号构成的字符串
+     * @Description: 更新操作
+     * @Method: update
+     * @Implementation: 构造sql语句，根据id号，先修改之前的bitMap值，然后执行sql语句后，再通过id号，修改之后的bitMap值
+     * @Return: boolean     成功返回true，否则返回false
+     * @Date: 2019/11/21 9:44
+     * @Author: Tod
+     */
     private static boolean update(String[] updateStr) {
         // update 表名 set 列名1 = 值1, 列名2 = 值2,... [where 条件];
         // UPDATE custom_info SET NAME = "Jimmy" WHERE id = 7
@@ -349,6 +367,15 @@ public class bitMap_Index {
         return list;
     }
 
+    /**
+     * @param selectCondition 多个码值的字符串数组
+     * @Description: 传入多个码值进行查询，输出相应结果
+     * @Method: selectMultiCode
+     * @Implementation: 构造bitSets集记录字符串对应解码后的bitMap中的BitSet值，先调用getSelectID得到id的List数组，再传入selectResult查询
+     * @Return: void
+     * @Date: 2019/11/21 11:53
+     * @Author: Tod
+     */
     private static void selectMultiCode(String[] selectCondition) {
         int l = selectCondition.length;
         BitSet[] bitSets = new BitSet[l];
@@ -362,7 +389,15 @@ public class bitMap_Index {
         selectResult(getSelectID(bitSets));
     }
 
-
+    /**
+     * @param list 保存id号的list表
+     * @Description: 根据list的id号来查询对应的结果
+     * @Method: selectResult
+     * @Implementation: 调用select函数查找结果集rs，调用print函数打印结果集
+     * @Return: void
+     * @Date: 2019/11/21 9:48
+     * @Author: Tod
+     */
     private static void selectResult(List<Integer> list) {
         // 获取数据库连接对象conn
         try {
@@ -409,6 +444,15 @@ public class bitMap_Index {
         return rs;
     }
 
+    /**
+     * @param rs ResultSet结果集
+     * @Description: 通过结果集rs打印输出结果
+     * @Method: print
+     * @Implementation: 根据metaData中对应的列数目来查找对应的列值并打印输出
+     * @Return: void
+     * @Date: 2019/11/21 9:51
+     * @Author: Tod
+     */
     private static void print(ResultSet rs) throws SQLException {
         while (rs.next()) {
             for (int j = 1; j <= metaData.getColumnCount(); j++) {
@@ -419,31 +463,37 @@ public class bitMap_Index {
     }
 
     /**
-     * @param bitSet
-     * @Description:
+     * @param bitSet 待压缩的位图
+     * @Description: 将bitSet进行位图压缩
      * @Method: encoding
-     * @Implementation:
-     * @Return: java.util.BitSet
-     * @Date: 2019/11/20 9:53
+     * @Implementation: 调用getList得到压缩序列，调用getBit得到序列中每个值的n = ceil(log m)值，设置前n-1个值为1，第n个值为0，后跟序列值的二进制位，返回压缩后的长度
+     * @Return: int // 返回压缩后的长度
+     * @Date: 2019/11/21 11:46
      * @Author: Tod
      */
     private static int encoding(BitSet bitSet) {
 //        System.out.println(bitSet);
+        // 得到压缩序列
         List<Integer> list = getList(bitSet);
 //        System.out.println(list);
+        // 当前下标
         int index = 0;
 //        BitSet set = new BitSet();
         bitSet.clear();
         for (Integer integer : list) {
+            // 得到每个值的n = ceil(log m)值
             int count = getBit(integer);
             int temp = count;
             // 0->0 1->1    2->2    3->2    4->3    5->3    ... 8->4
+            // 设置前n-1个值为1
             while (count > 1) {
                 bitSet.set(index++);
                 count--;
             }
+            // 设置第n个值为0
             index++;
             for (int i = temp - 1; i >= 0; i--) {
+                // 移位操作
                 if (((integer >> i) & 1) == 1) {
                     bitSet.set(index++);
                 } else {
@@ -454,9 +504,19 @@ public class bitMap_Index {
 //        System.out.println(bitSet);
 //        System.out.println(index);
 //        decoding(set,index);
+        // 返回压缩后的长度，避免出现末尾多个0的情况被忽略
         return index;
     }
 
+    /**
+     * @param integer
+     * @Description: 获取integer的二进制位数
+     * @Method: getBit
+     * @Implementation: 获取ceil(log2 ( integer + 1))的值，当integer为0时返回1
+     * @Return: int 返回获取integer的二进制位数
+     * @Date: 2019/11/21 12:09
+     * @Author: Tod
+     */
     private static int getBit(Integer integer) {
         if (integer == 0) {
             return 1;
@@ -464,6 +524,15 @@ public class bitMap_Index {
         return (int) Math.ceil(Math.log(integer + 1) / Math.log(2.0));
     }
 
+    /**
+     * @param bitSet 待压缩的BitSet值
+     * @Description: 获取压缩序列，如100000001 -> (0,7)
+     * @Method: getList
+     * @Implementation: 两个指针一个gap, gap = i - j -1;
+     * @Return: java.util.List<java.lang.Integer>
+     * @Date: 2019/11/21 12:30
+     * @Author: Tod
+     */
     private static List<Integer> getList(BitSet bitSet) {
         List<Integer> list = new LinkedList<Integer>();
         int j = -1;
@@ -476,10 +545,23 @@ public class bitMap_Index {
         return list;
     }
 
+    /**
+     * @param bitSet 压缩后的bitSet
+     * @param length 压缩后的长度
+     * @Description: 解压缩
+     * @Method: decoding
+     * @Implementation: 两个指针，一个移动指针来判断是否结束，一个恢复指针用来置位
+     * @Return: void
+     * @Date: 2019/11/21 12:16
+     * @Author: Tod
+     */
     private static void decoding(BitSet bitSet, int length) {
         BitSet set = new BitSet();
+        // 移动指针     二进制位数   值
         int index = 0, count, num;
+        // 恢复的指针
         int setIndex = 0;
+        // 00110111 -> 100000001
         while (index < length) {
             count = 1;
             while (bitSet.get(index)) {
